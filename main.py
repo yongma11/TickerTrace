@@ -182,7 +182,19 @@ if "data" in st.session_state and not st.session_state["data"].empty:
             fv_idx = s.first_valid_index()
             if fv_idx is not None and s.loc[fv_idx] > 0:
                 norm[tk] = s / s.loc[fv_idx] * 100
-        st.line_chart(norm)
+        # 모바일 사파리 메모리 보호: 일봉 수천 개를 Vega로 그리면
+        # 렌더 프로세스가 메모리 초과로 죽어 '문제가 반복적으로 발생' 크래시가 남.
+        # 추세 확인용이므로 포인트를 ~600개로 제한(버전 무관 stride 방식).
+        MAX_POINTS = 600
+        if len(norm) > MAX_POINTS:
+            step = len(norm) // MAX_POINTS + 1
+            norm_plot = pd.concat([norm.iloc[::step], norm.iloc[[-1]]])
+            norm_plot = norm_plot[~norm_plot.index.duplicated(keep="first")]
+        else:
+            norm_plot = norm
+        st.line_chart(norm_plot)
+        st.caption(f"차트는 {len(norm_plot):,}포인트로 다운샘플(모바일 안정화). "
+                   f"원본 일별 데이터는 CSV에 그대로 담깁니다.")
     except Exception:
         st.caption("차트 생략(데이터 확인).")
 
